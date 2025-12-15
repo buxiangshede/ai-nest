@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>成员管理</title>
+  <style>
+    :root {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      color: #0f172a;
+      background-color: #f8fafc;
+    }
+
+    body {
+      margin: 0;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      background: #fff;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border-radius: 8px;
+      border: 1px solid #cbd5f5;
+      font-size: 0.95rem;
+      margin-bottom: 1rem;
+    }
+
+    button {
+      background-color: #2563eb;
+      color: #fff;
+      border: none;
+      padding: 0.65rem 1.4rem;
+      border-radius: 999px;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #1d4ed8;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+    }
+
+    thead {
+      background: #eff6ff;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-size: 0.8rem;
+    }
+
+    th,
+    td {
+      padding: 0.875rem 1rem;
+      text-align: left;
+    }
+
+    tbody tr:nth-child(odd) {
+      background: #f8fafc;
+    }
+
+    .delete-btn {
+      background: transparent;
+      color: #ef4444;
+      border: 1px solid #fecaca;
+      padding: 0.35rem 0.9rem;
+      border-radius: 999px;
+    }
+
+    .delete-btn:hover {
+      background: #fee2e2;
+    }
+
+    .empty {
+      text-align: center;
+      padding: 1.5rem;
+      color: #94a3b8;
+    }
+
+    .notice {
+      margin-top: 1rem;
+      color: #16a34a;
+      min-height: 1.25rem;
+    }
+
+    .error {
+      color: #dc2626;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="container">
+    <h1>团队成员管理</h1>
+    <div class="cards">
+      <section class="card">
+        <h2>新增成员</h2>
+        <form id="member-form">
+          <label for="name">姓名</label>
+          <input id="name" name="name" required placeholder="如：张三" />
+
+          <label for="email">邮箱</label>
+          <input id="email" name="email" type="email" required placeholder="name@example.com" />
+
+          <label for="role">角色</label>
+          <select id="role" name="role">
+            <option value="产品">产品</option>
+            <option value="研发">研发</option>
+            <option value="运营">运营</option>
+            <option value="设计">设计</option>
+          </select>
+
+          <button type="submit">添加</button>
+          <p class="notice" id="form-notice"></p>
+        </form>
+      </section>
+    </div>
+
+    <section>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>姓名</th>
+            <th>邮箱</th>
+            <th>角色</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="member-body">
+          <tr>
+            <td class="empty" colspan="5">加载中...</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    const API_URL = '/items';
+    const bodyEl = document.getElementById('member-body');
+    const formEl = document.getElementById('member-form');
+    const noticeEl = document.getElementById('form-notice');
+
+    const setNotice = (message, isError = false) => {
+      noticeEl.textContent = message;
+      noticeEl.classList.toggle('error', isError);
+    };
+
+    const renderRows = (items) => {
+      if (!items.length) {
+        bodyEl.innerHTML = '<tr><td class="empty" colspan="5">暂无成员</td></tr>';
+        return;
+      }
+
+      bodyEl.innerHTML = items
+        .map(
+          (item) => `
+            <tr>
+              <td>${item.id}</td>
+              <td>${item.name}</td>
+              <td>${item.email}</td>
+              <td>${item.role}</td>
+              <td>
+                <button class="delete-btn" data-id="${item.id}">删除</button>
+              </td>
+            </tr>`
+        )
+        .join('');
+    };
+
+    const fetchItems = async () => {
+      try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        renderRows(data);
+      } catch (error) {
+        bodyEl.innerHTML = '<tr><td class="empty" colspan="5">加载失败</td></tr>';
+      }
+    };
+
+    formEl.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const formData = new FormData(formEl);
+      const payload = Object.fromEntries(formData.entries());
+
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) throw new Error('保存失败');
+        formEl.reset();
+        setNotice('保存成功');
+        fetchItems();
+      } catch (error) {
+        setNotice(error.message || '保存失败', true);
+      }
+    });
+
+    bodyEl.addEventListener('click', async (event) => {
+      if (event.target.matches('.delete-btn')) {
+        const id = event.target.getAttribute('data-id');
+        if (!id) return;
+        const confirmDelete = confirm('确认删除该成员吗？');
+        if (!confirmDelete) return;
+
+        try {
+          const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+          if (!res.ok) throw new Error('删除失败');
+          fetchItems();
+        } catch (error) {
+          alert(error.message || '删除失败');
+        }
+      }
+    });
+
+    fetchItems();
+  </script>
+</body>
+
+</html>
