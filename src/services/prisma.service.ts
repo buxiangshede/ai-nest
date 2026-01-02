@@ -1,5 +1,6 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import { prepareDatabaseUrl } from './prepare-database-url';
 
 /**
  * PrismaService 继承 PrismaClient：
@@ -12,6 +13,25 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   async onModuleInit() {
+    await prepareDatabaseUrl();
+    const databaseUrl = process.env.DATABASE_URL;
+    if (databaseUrl) {
+      try {
+        const url = new URL(databaseUrl);
+        console.log('Prisma connect target', {
+          host: url.hostname,
+          port: url.port || '5432',
+          database: url.pathname.replace(/^\//, ''),
+          sslmode: url.searchParams.get('sslmode'),
+        });
+      } catch (error) {
+        console.warn('Prisma connect target parse failed', {
+          error: error instanceof Error ? error.message : error,
+        });
+      }
+    } else {
+      console.warn('DATABASE_URL missing before Prisma connect');
+    }
     // 建立数据库连接，等价于 client.$connect()
     await this.$connect();
   }

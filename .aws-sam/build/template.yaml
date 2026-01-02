@@ -1,110 +1,109 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-
 Parameters:
   DBSecretArn:
     Type: String
     Description: ARN of Secrets Manager secret for database credentials
-
 Globals:
   Function:
     Timeout: 30
     MemorySize: 1024
     Runtime: nodejs18.x
-    Architectures: ['x86_64']
+    Architectures:
+    - x86_64
     Environment:
       Variables:
-        NODE_OPTIONS: '--enable-source-maps'
+        NODE_OPTIONS: --enable-source-maps
     EphemeralStorage:
       Size: 512
   Api:
     OpenApiVersion: '2.0'
     Cors:
-      AllowMethods: "'*'"
-      AllowHeaders: "'Content-Type,Authorization'"
-      AllowOrigin: "'*'"
+      AllowMethods: '''*'''
+      AllowHeaders: '''Content-Type,Authorization'''
+      AllowOrigin: '''*'''
       MaxAge: 600
-
 Resources:
   NodeModulesLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
       LayerName: nest-dependencies
       Description: Node modules for Nest.js application
-      ContentUri: layer/
+      ContentUri: ../../layer
       CompatibleRuntimes:
-        - nodejs18.x
+      - nodejs18.x
       RetentionPolicy: Retain
   Api:
     Type: AWS::Serverless::Api
     Properties:
       StageName: dev
       BinaryMediaTypes:
-        - 'image/*'
-        - 'multipart/form-data'
+      - image/*
+      - multipart/form-data
       Auth:
         DefaultAuthorizer: NONE
-
   NestFunction:
     Type: AWS::Serverless::Function
     Properties:
       Handler: lambda.handler
-      CodeUri: ./dist 
+      CodeUri: NestFunction
       MemorySize: 3008
       Timeout: 90
       Layers:
-        - !Ref NodeModulesLayer
+      - Ref: NodeModulesLayer
       Policies:
         Statement:
-            - Effect: Allow
-              Action:
-                - secretsmanager:GetSecretValue
-              Resource: !Ref DBSecretArn
+        - Effect: Allow
+          Action:
+          - secretsmanager:GetSecretValue
+          Resource:
+            Ref: DBSecretArn
       Events:
         ApiRoot:
           Type: Api
           Properties:
             Path: /
-            Method: ANY 
-            RestApiId: !Ref Api 
+            Method: ANY
+            RestApiId:
+              Ref: Api
         ApiEvent:
           Type: Api
           Properties:
             Path: /{proxy+}
             Method: ANY
-            RestApiId: !Ref Api
+            RestApiId:
+              Ref: Api
             Auth:
               Authorizer: NONE
       VpcConfig:
-        # 私网子网 ID（3 个，分布在不同 AZ）
-        # Lambda 会在这些子网中运行
         SubnetIds:
-          - subnet-0939b1a3b99d9771f
-          - subnet-0f5487a66eeee1a13
-          - subnet-05d7ded925a46386e
-        # Lambda 安全组
-        # 允许 Lambda 访问数据库（通过数据库安全组的入站规则）
+        - subnet-0939b1a3b99d9771f
+        - subnet-0f5487a66eeee1a13
+        - subnet-05d7ded925a46386e
         SecurityGroupIds:
-          - sg-0dd2d82efc24ddd0e
+        - sg-0dd2d82efc24ddd0e
       Environment:
         Variables:
-          DB_SECRET_ARN: !Ref DBSecretArn
-############################
-# Security Group
-############################
+          DB_SECRET_ARN:
+            Ref: DBSecretArn
+    Metadata:
+      SamResourceId: NestFunction
   LambdaSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Lambda access to database
       VpcId: vpc-0fa0071d26df679e5
       SecurityGroupEgress:
-        - IpProtocol: -1
-          CidrIp: 0.0.0.0/0
-
+      - IpProtocol: -1
+        CidrIp: '0.0.0.0/0'
 Outputs:
   ApiEndpoint:
     Description: API Gateway endpoint URL
-    Value: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/dev'
+    Value:
+      Fn::Sub: https://${Api}.execute-api.${AWS::Region}.amazonaws.com/dev
   FunctionArn:
     Description: Lambda Function ARN
-    Value: !GetAtt NestFunction.Arn
+    Value:
+      Fn::GetAtt:
+      - NestFunction
+      - Arn
