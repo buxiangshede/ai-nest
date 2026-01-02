@@ -124,6 +124,29 @@
     .error {
       color: #dc2626;
     }
+
+    .github-profile {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+      align-items: center;
+    }
+
+    .github-profile.hidden {
+      display: none;
+    }
+
+    .github-avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #e2e8f0;
+    }
+
+    .github-meta {
+      line-height: 1.4;
+    }
   </style>
 </head>
 
@@ -152,6 +175,31 @@
           <p class="notice" id="form-notice"></p>
         </form>
       </section>
+
+      <section class="card">
+        <h2>GitHub 用户信息</h2>
+        <form id="github-form">
+          <label for="github-token">个人 Token</label>
+          <input id="github-token" name="token" placeholder="ghp_xxx" required />
+
+          <button type="submit">获取信息</button>
+          <p class="notice" id="github-notice"></p>
+        </form>
+
+        <div id="github-profile" class="github-profile hidden">
+          <img id="github-avatar" class="github-avatar" alt="avatar" />
+          <div class="github-meta">
+            <div><strong id="github-name"></strong> (@<span id="github-login"></span>)</div>
+            <div id="github-bio"></div>
+            <div>
+              <span id="github-followers"></span> ·
+              <span id="github-following"></span> ·
+              <span id="github-repos"></span>
+            </div>
+            <a id="github-link" href="#" target="_blank" rel="noreferrer">访问 GitHub</a>
+          </div>
+        </div>
+      </section>
     </div>
 
     <section>
@@ -176,9 +224,22 @@
 
   <script>
     const API_URL = '/items';
+    const GITHUB_API_URL = '/github/profile';
     const bodyEl = document.getElementById('member-body');
     const formEl = document.getElementById('member-form');
     const noticeEl = document.getElementById('form-notice');
+    const githubForm = document.getElementById('github-form');
+    const githubTokenInput = document.getElementById('github-token');
+    const githubNotice = document.getElementById('github-notice');
+    const githubProfile = document.getElementById('github-profile');
+    const githubAvatar = document.getElementById('github-avatar');
+    const githubName = document.getElementById('github-name');
+    const githubLogin = document.getElementById('github-login');
+    const githubBio = document.getElementById('github-bio');
+    const githubFollowers = document.getElementById('github-followers');
+    const githubFollowing = document.getElementById('github-following');
+    const githubRepos = document.getElementById('github-repos');
+    const githubLink = document.getElementById('github-link');
 
     const setNotice = (message, isError = false) => {
       noticeEl.textContent = message;
@@ -256,6 +317,54 @@
     });
 
     fetchItems();
+
+    const setGithubNotice = (message, isError = false) => {
+      githubNotice.textContent = message;
+      githubNotice.classList.toggle('error', isError);
+    };
+
+    const renderGithubProfile = (profile) => {
+      githubAvatar.src = profile.avatarUrl;
+      githubAvatar.alt = profile.login;
+      githubName.textContent = profile.name || '未填写昵称';
+      githubLogin.textContent = profile.login;
+      githubBio.textContent = profile.bio || '暂无简介';
+      githubFollowers.textContent = `粉丝 ${profile.followers}`;
+      githubFollowing.textContent = `关注 ${profile.following}`;
+      githubRepos.textContent = `公开仓库 ${profile.publicRepos}`;
+      githubLink.href = profile.profileUrl;
+      githubProfile.classList.remove('hidden');
+    };
+
+    githubForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const token = githubTokenInput.value.trim();
+      if (!token) {
+        setGithubNotice('请填写 GitHub Token', true);
+        return;
+      }
+
+      setGithubNotice('查询中...');
+      githubProfile.classList.add('hidden');
+
+      try {
+        const res = await fetch(GITHUB_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.message || '查询失败');
+        }
+
+        renderGithubProfile(data);
+        setGithubNotice('查询成功');
+      } catch (error) {
+        setGithubNotice(error.message || '查询失败', true);
+      }
+    });
   </script>
 </body>
 

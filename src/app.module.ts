@@ -5,6 +5,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ItemsModule } from './modules/items.module';
 import { PrismaModule } from './modules/prisma.module';
+import { GithubModule } from './modules/github.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { PrismaModule } from './modules/prisma.module';
     PrismaModule,
     // 业务模块：包含 items 的 controller & service
     ItemsModule,
+    GithubModule,
   ],
   controllers: [AppController],
   providers: [AppService],
